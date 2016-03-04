@@ -22,12 +22,12 @@ g++ omp_application.cpp -fopenmp -o omp_application
 
 3)
 // shared library 
-g++ -ggdb `pkg-config --cflags --libs opencv` libomptool.cpp -fopenmp
--lsigar -pthread -o libomptool.so -fPIC -shared -ldl -D_GNU_SOURCE
+g++ -ggdb `pkg-config --cflags --libs opencv` openMP_profiler.cpp -fopenmp
+-lsigar -pthread -o openMP_profiler.so -fPIC -shared -ldl -D_GNU_SOURCE
 
 4)
 //preload library, replace with correct path 
-export LD_PRELOAD="/home/debian/Documents/libomptool.so"
+export LD_PRELOAD="/home/debian/Documents/openMP_profier.so"
 
 5)
 // run app

@@ -95,10 +95,13 @@ struct dataset_record{
 };
 bool forest_created = false;
 
-# define NV 1000
+# define NV 1440
+# define dataset_path "experiments/alg/exp11.data"
+# define forest_path "experiments/alg/exp11.forest"
+# define prediction_log "experiments/alg/exp29_ftt.txt"
 
-int run_dijkstra();
-int *dijkstra_distance ( int ohd[NV][NV] );
+int run_dijkstra(int num_thrs);
+int *dijkstra_distance ( int ohd[NV][NV], int num_thrs);
 void find_nearest ( int s, int e, int mind[NV], bool connected[NV], int *d, 
   int *v );
 void init ( int ohd[NV][NV] );
@@ -106,7 +109,7 @@ void timestamp ( );
 void update_mind ( int s, int e, int mv, bool connected[NV], int ohd[NV][NV], 
   int mind[NV] );
 
-int run_dijkstra(){
+int run_dijkstra(int num_thrs){
   int i;
   int i4_huge = 2147483647;
   int j;
@@ -121,7 +124,7 @@ int run_dijkstra(){
 //
 //  Carry out the algorithm.
 //
-  mind = dijkstra_distance ( ohd );
+  mind = dijkstra_distance(ohd, num_thrs);
 //
 //  Free memory.
 //
@@ -138,7 +141,7 @@ int run_dijkstra(){
   return 0;
 }
 
-int *dijkstra_distance ( int ohd[NV][NV] )
+int *dijkstra_distance ( int ohd[NV][NV], int num_thrs)
 {
   bool *connected;
   int i;
@@ -174,7 +177,8 @@ int *dijkstra_distance ( int ohd[NV][NV] )
 //
 //  Begin the parallel region.
 //
-  # pragma omp parallel private ( my_first, my_id, my_last, my_md, my_mv, my_step ) \
+ 
+  # pragma omp parallel num_threads(num_thrs) private ( my_first, my_id, my_last, my_md, my_mv, my_step ) \
   shared ( connected, md, mind, mv, nth, ohd )
   {
     my_id = omp_get_thread_num ( );
@@ -358,11 +362,11 @@ void update_mind ( int s, int e, int mv, bool connected[NV], int ohd[NV][NV],
  * Funcitons for the the multitask benchmark
  * */
  
-int run_multitask ( );
+int run_multitask(int num_thrs);
 int *prime_table ( int prime_num );
 double *sine_table ( int sine_num );
 
-int run_multitask ( void )
+int run_multitask (int num_thrs)
 {
   int prime_num;
   int *primes;
@@ -374,12 +378,12 @@ int run_multitask ( void )
 
   timestamp ( );
   
-  prime_num = 10000;
-  sine_num = 10000;
+  prime_num = 12500;
+  sine_num = 12500;
 
   wtime = omp_get_wtime ( );
 
-# pragma omp parallel shared ( prime_num, primes, sine_num, sines )
+# pragma omp parallel num_threads(num_thrs) shared ( prime_num, primes, sine_num, sines ) 
 {
   # pragma omp sections
   {
@@ -471,18 +475,18 @@ double *sine_table ( int sine_num )
 
 // Functions for the poisson benchmark
 
-# define NX 101
-# define NY 101
+# define NX 151
+# define NY 151
 
-int run_poisson ( );
+int run_poisson ( int num_thrs);
 double r8mat_rms ( int m, int n, double a[NX][NY] );
 void rhs ( int nx, int ny, double f[NX][NY] );
 void sweep ( int nx, int ny, double dx, double dy, double f[NX][NY], 
-  int itold, int itnew, double u[NX][NY], double unew[NX][NY] );
+  int itold, int itnew, double u[NX][NY], double unew[NX][NY], int num_thrs );
 double u_exact ( double x, double y );
 double uxxyy_exact ( double x, double y );
 
-int run_poisson ()
+int run_poisson (int num_thrs)
 {
   bool converged;
   double diff;
@@ -584,7 +588,7 @@ int run_poisson ()
 //  SWEEP carries out 500 Jacobi steps in parallel before we come
 //  back to check for convergence.
 //
-    sweep ( nx, ny, dx, dy, f, itold, itnew, u, unew );
+    sweep ( nx, ny, dx, dy, f, itold, itnew, u, unew , num_thrs);
 //
 //  Check for convergence.
 //
@@ -621,7 +625,7 @@ int run_poisson ()
 //
 //  Terminate.
 //
-  timestamp ( );
+  //timestamp ( );
 
   return 0;
 }
@@ -680,20 +684,20 @@ void rhs ( int nx, int ny, double f[NX][NY] )
 }
 
 void sweep ( int nx, int ny, double dx, double dy, double f[NX][NY], 
-  int itold, int itnew, double u[NX][NY], double unew[NX][NY] )
+  int itold, int itnew, double u[NX][NY], double unew[NX][NY] , int num_thrs)
 {
   int i;
   int it;
   int j;
 
-# pragma omp parallel shared ( dx, dy, f, itnew, itold, nx, ny, u, unew ) private ( i, it, j )
+# pragma omp parallel num_threads(num_thrs) shared ( dx, dy, f, itnew, itold, nx, ny, u, unew ) private ( i, it, j )
 
   for ( it = itold + 1; it <= itnew; it++ )
   {
 //
 //  Save the current estimate.
 //
-# pragma omp for
+# pragma omp for 
     for ( j = 0; j < ny; j++ )
     {
       for ( i = 0; i < nx; i++ )
@@ -745,13 +749,13 @@ double uxxyy_exact ( double x, double y )
   return value;
 }
 
-int run_circuit ( );
+int run_circuit ( int num_thrs);
 int circuit_value ( int n, int bvec[] );
 void i4_to_bvec ( int i4, int n, int bvec[] );
 
 //****************************************************************************80
 
-int run_circuit ()
+int run_circuit (int num_thrs)
 
 //****************************************************************************80
 //
@@ -780,7 +784,7 @@ int run_circuit ()
 //    LC: QA76.73.C15.Q55.
 //
 {
-# define N 27
+# define N 25
 
   int bvec[N];
   int i;
@@ -815,16 +819,13 @@ int run_circuit ()
 //  Using the formulas below yields a set of nonintersecting intervals
 //  which cover the original interval [ILO,IHI).
 //
-# pragma omp parallel
-{
-  thread_num = omp_get_num_threads ( );
-}
-  
+  thread_num=num_thrs;
   solution_num = 0;
 
   wtime = omp_get_wtime ( );
 
 # pragma omp parallel \
+  num_threads(num_thrs) \
   shared ( ihi, ilo, n, thread_num ) \
   private ( bvec, i, id, ihi2, ilo2, j, solution_num_local, value ) \
   reduction ( + : solution_num )
@@ -1261,6 +1262,7 @@ int get_cpu_list_info(dataset_record * record)
         return -1;
     }
     //printf("sigar ok\n");
+    //printf("sigar ok\n");
     //if (cpu_last_used == 0)
     {
         cpu_last_used = cpu_new_used;
@@ -1361,7 +1363,7 @@ void get_cpu_list_info1(dataset_record * record){
         cpu_list_prev_stolen += tmp_cpu.stolen;
 	}
 	
-	unsigned int microsec = 10000;
+	unsigned int microsec = 1000000;
 	usleep(microsec);
 	
 	sigar_close(sigar);
@@ -1404,10 +1406,10 @@ void get_cpu_list_info1(dataset_record * record){
 	printf("cpu_list_prev_idle = %llu",cpu_list_prev_idle);
 	tmp_diff= (cpu_list_next_idle-cpu_list_prev_idle);
 	printf("diff = %llu",tmp_diff);
-	cout<<"record->lst_total:"<<record->lst_total<<", diff:"<<(cpu_list_next_total-cpu_list_prev_total)<<endl;
+	//cout<<"record->lst_total:"<<record->lst_total<<", diff:"<<(cpu_list_next_total-cpu_list_prev_total)<<endl;
 	
 	record->lst_idle = (cpu_list_next_idle-cpu_list_prev_idle);
-	cout<<"record->idle:"<<record->lst_idle<<endl;
+	//cout<<"record->idle:"<<record->lst_idle<<endl;
 	printf("cpu_list_next_idle = %llu",cpu_list_next_idle);
 	printf("cpu_list_prev_idle = %llu",cpu_list_prev_idle);
 	tmp_diff= (cpu_list_next_idle-cpu_list_prev_idle);
@@ -1555,24 +1557,98 @@ read_num_class_data( const char* filename, int var_count,
   * Function that returns the predicted optimal number of threads for a current runtime state
   * */
  double predict_for_sample(dataset_record * record){
+	// predict for dataset 1, 11 vars
+	/*
 	double array [11];
 	for (int i=0;i<11;i++){
 		array[i]= 0.1f;
 	}
 	
-	array[0]=(double)record->cpu_usage;
-	array[1]=(double)record->pid_cpu_usage;
-	array[2]=(double)record->lst_cpu_usage;
-	array[3]=(double)record->ram_usage;
-	array[4]=(double)record->pid_page_faults;
-	array[5]=(double)record->procs_blocked;
-	array[6]=(double)record->user;
-	array[7]=(double)record->sys;
-	array[8]=(double)record->idle;
-	array[9]=(double)record->irq;
-	array[10]=(double)record->lst_cpu_usage;
+	array[0]=0.0f;
+	array[1]=(double)record->cpu_usage;
+	array[2]=(double)record->pid_cpu_usage;
+	array[3]=(double)record->lst_cpu_usage;
+	array[4]=(double)record->ram_usage;
+	array[5]=(double)record->pid_page_faults;
+	array[6]=(double)record->procs_blocked;
+	array[7]=(double)record->user;
+	array[8]=(double)record->sys;
+	array[9]=(double)record->idle;
+	array[10]=(double)record->irq;
+	*/
 	
-	cv::Mat mat(1, 11, CV_32FC1, &array);
+	double array [28];
+	for (int i=0;i<28;i++){
+		array[i]= 0.1f;
+	}
+	
+	array[0]=4.0f;
+	array[1]=(double)record->cpu_usage;
+	array[2]=(double)record->pid_cpu_usage;
+	array[3]=(double)record->lst_cpu_usage;
+	array[4]=(double)record->ram_usage;
+	array[5]=(double)record->pid_page_faults;
+	array[6]=(double)record->pid_ram_usage;
+	array[7]=(double)record->procs_blocked;
+	array[8]=(double)record->processes;
+	array[9]=(double)record->procs_running;
+	array[10]=(double)record->procs_blocked;
+	array[11]=(double)record->user;
+	array[12]=(double)record->sys;
+	array[13]=(double)record->nice;
+	array[14]=(double)record->idle;
+	array[15]=(double)record->wait;
+	array[16]=(double)record->irq;
+	array[17]=(double)record->soft_irq;  
+	array[18]=(double)record->lst_stolen; 
+	array[19]=(double)record->lst_user;
+	array[20]=(double)record->lst_sys; 
+	array[21]=(double)record->lst_nice;
+	array[22]=(double)record->lst_idle; 
+	array[23]=(double)record->lst_wait;
+	array[24]=(double)record->lst_irq; 
+	array[25]=(double)record->lst_soft_irq; 
+	array[26]=(double)record->lst_total; 
+	array[27]=(double)record->lst_cpu_usage;
+     
+   //  array[0]=4.0f;
+   
+   /*
+   double array [8];
+	for (int i=0;i<8;i++){
+		array[i]= 0.1f;
+	}
+	array[0]=(double)record->pid_cpu_usage;
+	array[1]=(double)record->lst_cpu_usage;
+	array[2]=(double)record->lst_nice;
+	array[3]=(double)record->lst_idle; 
+	array[4]=(double)record->lst_wait;
+	array[5]=(double)record->lst_irq; 
+	array[6]=(double)record->lst_soft_irq;
+	array[7]=(double)record->lst_cpu_usage;
+	*/
+	/*
+	double array [14];
+	for (int i=0;i<14;i++){
+		array[i]= 0.1f;
+	}
+	
+	array[0]=(double)record->num_threads;
+	array[1]=(double)record->pid_ram_usage;
+	array[2]=(double)record->ram_usage;
+	array[3]=(double)record->pid_cpu_usage; 
+	array[4]=(double)record->cpu_usage;
+	array[5]=(double)record->procs_blocked;
+	array[6]=(double)record->nice;
+	array[7]=(double)record->idle;
+	array[8]=(double)record->user;
+	array[9]=(double)record->sys;
+	array[10]=(double)record->wait;
+	array[11]=(double)record->irq;
+	array[12]=(double)record->soft_irq;
+	array[13]=(double)record->lst_cpu_usage;
+  */
+	cv::Mat mat(1, 28, CV_32FC1, &array);
 
 	double r = (double)forest.predict(mat);
     return fabs(r);
@@ -1588,7 +1664,7 @@ int build_rtrees_classifier( char* data_filename,
     CvMat* var_type = 0;
     CvMat* sample_idx = 0;
 
-    int ok = read_num_class_data( data_filename,11 , &data, &responses );
+    int ok = read_num_class_data( data_filename, 28 , &data, &responses );
     int nsamples_all = 0, ntrain_samples = 0;
     int i = 0;
     double train_hr = 0, test_hr = 0;
@@ -2229,7 +2305,7 @@ int build_svm_classifier( char* data_filename, const char* filename_to_save, con
 
 // Function that write the dataset on disk 
 void write_in_dataset( string path, dataset_record * r){
-	ofstream myfile ("dataset_meas7.data",ios::app);
+	ofstream myfile (dataset_path,ios::app);
 	/*
 	cout<<"r->num_threads:"<<r->num_threads<<endl;
 	cout<<"r->cpu_usage:"<<r->cpu_usage<<endl;
@@ -2252,19 +2328,48 @@ void write_in_dataset( string path, dataset_record * r){
 	cout<<"r->irq:"<<r->irq<<endl;
 	*/
 	//cout.setprecision(8);
-	myfile <<r->num_threads<<","<<std::fixed<<std::setw(8)<<r->cpu_usage<<","<<r->pid_cpu_usage<<","<<r->lst_cpu_usage;
-	
-	myfile << std::fixed<<std::setw(8)<< r->ram_usage<<","<<r->pid_page_faults<<",";
+    myfile <<r->num_threads<<","<<std::fixed<<std::setw(8)<<r->cpu_usage<<","<<r->pid_cpu_usage<<","<<r->lst_cpu_usage<<",";
+	// First set
+	//// included
+	// not incl
+	////myfile << std::fixed<<std::setw(8)<< r->ram_usage<<","<<r->pid_page_faults<<",";
 	//myfile<<r->pid_ram_usage<<",";
 	//myfile << std::fixed<<std::setw(8)<< r->vm_usage<<","<<r->pid_vm_read_usage<<","<<r->pid_vm_write_usage<<",";
 	//myfile << std::fixed<<std::setw(8)<< r->vm_usage<<","<<r->pid_vm_read_usage<<","<<r->pid_vm_write_usage<<",";
-	myfile <<r->procs_blocked<<",";
+	////myfile <<r->procs_blocked<<",";
 	//myfile <<r->processes<<","<<r->procs_running<<","<<r->procs_blocked<<",";
     //myfile << std::fixed<<std::setw(8)<< r->user<<","<<r->sys<<","<<r->idle<<endl;
-	myfile << std::fixed<<std::setw(8)<<r->user<<","<<r->sys<<","<<r->idle<<","<<r->irq<<",";
+	////myfile << std::fixed<<std::setw(8)<<r->user<<","<<r->sys<<","<<r->idle<<","<<r->irq<<endl;
 	//myfile << r->steal_time<<","<< std::fixed<<std::setw(8)<<r->user<<","<<r->sys<<","<<r->nice<<","<<r->idle<<","<<r->wait<<","<<r->irq<<","<<r->soft_irq<<",";
 	//myfile << r->lst_stolen<<","<< r->lst_user<<","<<r->lst_sys<<","<<r->lst_nice<<","<<r->lst_idle<<","<<r->lst_wait<<","<<r->lst_irq<<","<<r->lst_soft_irq<<","<<r->lst_total<<",";
+	//myfile <<  std::fixed<<std::setw(8) << r->lst_cpu_usage<<endl;
+	
+	// Second set, exp2-10 , 28
+	
+	myfile << std::fixed<<std::setw(8)<< r->ram_usage<<","<<r->pid_page_faults<<",";
+	myfile<<r->pid_ram_usage<<",";
+	myfile <<r->procs_blocked<<",";
+	myfile <<r->processes<<","<<r->procs_running<<","<<r->procs_blocked<<",";
+    myfile << std::fixed<<std::setw(8)<<r->user<<","<<r->sys<<","<<r->nice<<","<<r->idle<<",";
+	myfile << std::fixed<<std::setw(8)<<r->wait<<","<<r->irq<<","<<r->soft_irq<<",";
+	myfile << r->lst_stolen<<","<< r->lst_user<<","<<r->lst_sys<<","<<r->lst_nice<<","<<r->lst_idle<<","<<r->lst_wait<<","<<r->lst_irq<<","<<r->lst_soft_irq<<","<<r->lst_total<<",";
 	myfile <<  std::fixed<<std::setw(8) << r->lst_cpu_usage<<endl;
+  
+    //Dataset #3
+    /*
+    myfile <<r->num_threads<<","<<std::fixed<<std::setw(8)<<r->pid_cpu_usage<<","<<r->lst_cpu_usage<<",";
+	myfile <<r->nice<<","<<r->idle<<",";
+	myfile << std::fixed<<std::setw(8)<<r->wait<<","<<r->irq<<","<<r->soft_irq<<",";
+	myfile << std::fixed<<std::setw(8) << r->lst_cpu_usage<<endl;
+    */
+    //Datset 4
+    /*
+    myfile <<r->num_threads<<","<<std::fixed<<std::setw(8)<<r->pid_ram_usage<<","<<r->ram_usage<<","<<r->pid_cpu_usage<<","<<r->cpu_usage<<",";
+    myfile <<r->procs_blocked<<",";
+    myfile <<r->nice<<","<<r->idle<<",";
+	myfile << std::fixed<<std::setw(8)<<r->user<<","<<r->sys<<","<<r->wait<<","<<r->irq<<","<<r->soft_irq<<",";
+	myfile << std::fixed<<std::setw(8) << r->lst_cpu_usage<<endl;
+	*/
 	myfile.close();
 }
 
@@ -2331,7 +2436,6 @@ void * linpack_benchmark(void * params){
 			  records[k].num_threads = num_thr;
 			  records[k].processes = sysconf( _SC_NPROCESSORS_ONLN );
 			  get_runtime_stats(&records[k]);
-			  
 			 // run linpack benchmark
 			 double start_time = omp_get_wtime();
 			 #pragma omp parallel for num_threads(num_thr)
@@ -2339,12 +2443,11 @@ void * linpack_benchmark(void * params){
 				 {
 					dy[i] = dy[i] + da * dx[i];
 				 }
-			 
 			double time = omp_get_wtime() - start_time;
-		 
+		    cout<<"Elapsed time with "<<num_thr<<" threads:"<<time<<endl;
 			results[k] = time;
 			
-			int micro = rand()%10000 + 1;
+			int micro = rand()%1000000 + 1;
 			usleep(micro);
 			//cout<<"Time elapsed:"<<time<<endl;
 			
@@ -2484,10 +2587,10 @@ void * gauss_seidel_benchmark(void * params){
 			 }
 			
 			double time = omp_get_wtime() - start_time;
-		 
+		    //cout<<"Elapsed time for "<<num_thr<<" threads:"<<time<<endl;
 			results[k] = time;
 			
-			int micro = rand()%5500 + 1;
+			int micro = rand()%5500000 + 1;
 			//usleep(micro);
 			//for(int dd=0;dd<range_threads;dd++){
 			//	cout<<"["+dd<<"] = "<<fixed<<results[dd]<<endl;
@@ -2527,14 +2630,12 @@ void * dijkstra_benchmark(void * params){
 		
 	for(int j =0; j<dijkstra_params->num_tries; j++){
 		num_thr = 0;
-		
 		for(int k =0; k<range_threads; k++){
 			// increment num threads
 			if(num_thr<=dijkstra_params->num_thr_end){
 				num_thr ++;
 			}
 			else {
-				
 				break;
 			}
 		
@@ -2548,14 +2649,15 @@ void * dijkstra_benchmark(void * params){
 			 // run dijkstra benchmark
 			 double start_time = omp_get_wtime();
 			
-			run_dijkstra();
+			//omp_set_num_threads(num_thr);
+			run_dijkstra(num_thr);
 			 
 			double time = omp_get_wtime() - start_time;
-		 
+		    //cout<<"Elapsed time for "<<num_thr<<" threads:"<<time<<endl;
 			results[k] = time;
 			
-			int micro = rand()%10000 + 1;
-			usleep(micro);
+			//int micro = rand()%10000 + 1;
+			//usleep(micro);
 			//cout<<"Time elapsed:"<<time<<endl;
 			
 		}
@@ -2610,14 +2712,15 @@ void * multitask_benchmark(void * params){
 			 // run linpack benchmark
 			 double start_time = omp_get_wtime();
 			
-			run_multitask();
+			//omp_set_num_threads(num_thr);
+			run_multitask(num_thr);
 			 
 			double time = omp_get_wtime() - start_time;
-		 
+		    //cout<<"Elapsed time with "<<num_thr<<" threads: "<<time<<endl;
 			results[k] = time;
 			
-			int micro = rand()%10000 + 1;
-			usleep(micro);
+			//int micro = rand()%10000 + 1;
+			//usleep(micro);
 			//cout<<"Time elapsed:"<<time<<endl;
 			
 		}
@@ -2672,14 +2775,16 @@ void * poisson_benchmark(void * params){
 			 // run linpack benchmark
 			 double start_time = omp_get_wtime();
 			
-			run_poisson();
-			 
-			double time = omp_get_wtime() - start_time;
-		 
-			results[k] = time;
+			//omp_set_num_threads(num_thr);
+			run_poisson(num_thr);
 			
-			int micro = rand()%10000 + 1;
+			double time = omp_get_wtime() - start_time;
+		    //cout<<"Elapsed time with "<<num_thr<<" threads:"<<time<<endl;
+			results[k] = time;
+	
+		    int micro = rand()%30000000 + 10000;
 			usleep(micro);
+
 			//cout<<"Time elapsed:"<<time<<endl;
 			
 		}
@@ -2732,14 +2837,14 @@ void * circuit_benchmark(void * params){
 			  
 			 // run linpack benchmark
 			 double start_time = omp_get_wtime();
-			
-			run_circuit();
+			//omp_set_num_threads(num_thr);
+			run_circuit(num_thr);
 			 
 			double time = omp_get_wtime() - start_time;
-		 
+			//cout<<"Running with "<<num_thr<<" threads: "<<time<<endl;
 			results[k] = time;
 			
-			int micro = rand()%10000 + 1;
+			int micro = rand()%3000000 + 1000;
 			usleep(micro);
 			//cout<<"Time elapsed:"<<time<<endl;
 			
@@ -2760,11 +2865,11 @@ void create_forest(){
 	
 	//char* filename_to_save = 0;
     //char* filename_to_load = 0;
-    char default_data_filename[] = "/home/debian/Documents/dataset_meas7.data";
-    char default_data_filename1[] = "/home/debian/Documents/dataset_meas7.forest";
+    char default_data_filename[] = dataset_path;
+    char default_data_filename1[] = forest_path;
     char* data_filename = default_data_filename;
     char * filename_to_save = default_data_filename1;
-    char default_data_filename2[] = "/home/debian/Documents/dataset_meas7.forest";
+    char default_data_filename2[] = forest_path;
     // Uncomment if you want to load tree
     forest_created=true;
     char * filename_to_load = default_data_filename2;
@@ -2785,38 +2890,38 @@ void create_forest(){
 	int max_num_thr = omp_get_max_threads();
 	
 	benchmark_param linpack_param;
-	linpack_param.n = 10000;
-	linpack_param.num_tries = 0;
+	linpack_param.n = 900000;
+	linpack_param.num_tries = 25;
 	linpack_param.num_thr_start = 1;
 	linpack_param.num_thr_end = max_num_thr;
 
 	benchmark_param gaus_seidel_param;
-	gaus_seidel_param.n = 200;
-	gaus_seidel_param.num_tries = 0;
+	gaus_seidel_param.n = 500;
+	gaus_seidel_param.num_tries = 10;
 	gaus_seidel_param.num_thr_start = 1;
 	gaus_seidel_param.num_thr_end = max_num_thr;
 	
 	benchmark_param dijkstra_param;
-	dijkstra_param.n = 200; // not used, fixed 600
-	dijkstra_param.num_tries = 20;
+	dijkstra_param.n = 100; // not used, fixed 600
+	dijkstra_param.num_tries = 25;
 	dijkstra_param.num_thr_start = 1;
 	dijkstra_param.num_thr_end = max_num_thr;
 	
 	benchmark_param multitask_param;
-	multitask_param.n = 200; // not used, fixed 2* 10000
-	multitask_param.num_tries = 20;
+	multitask_param.n = 100; // not used, fixed 2* 10000
+	multitask_param.num_tries = 30;
 	multitask_param.num_thr_start = 1;
 	multitask_param.num_thr_end = max_num_thr;
 	
 	benchmark_param poisson_param;
 	poisson_param.n = 200; // uses 100
-	poisson_param.num_tries = 20;
+	poisson_param.num_tries = 62;
 	poisson_param.num_thr_start = 1;
 	poisson_param.num_thr_end = max_num_thr;
 	
 	benchmark_param circuit_param;
 	circuit_param.n = 200; // uses 100
-	circuit_param.num_tries = 20;
+	circuit_param.num_tries = 63;
 	circuit_param.num_thr_start = 1;
 	circuit_param.num_thr_end = max_num_thr;
 	
@@ -2824,6 +2929,13 @@ void create_forest(){
 		cout<<"An error occured with pthreads."<<endl;
 		return;
 	}
+	
+	//linpack_benchmark(&linpack_param);
+	//gauss_seidel_benchmark(&gaus_seidel_param);
+	//dijkstra_benchmark(&dijkstra_param);
+	//multitask_benchmark(&multitask_param);
+	//poisson_benchmark(&poisson_param);
+	//circuit_benchmark(&circuit_param);
 	
 	/*
 	iret1 = pthread_create(&linpack_thread, NULL, linpack_benchmark, (void *)&linpack_param);
@@ -2839,12 +2951,13 @@ void create_forest(){
          exit(-1);
     }
     */
-    
+    /*
 	iret3 = pthread_create(&dijkstra_thread, NULL, dijkstra_benchmark, (void *)&dijkstra_param);
 	if (iret3){
       cout<<"ERROR; return code from pthread_create() is "<<iret3<<endl;
          exit(-1);
     }
+    * */
     
     int micro = 1000000;
 	usleep(micro);
@@ -2854,6 +2967,9 @@ void create_forest(){
       cout<<"ERROR; return code from pthread_create() is "<<iret4<<endl;
          exit(-1);
     }
+    
+    //usleep(micro);
+   //int micro = 30000000;
     usleep(micro);
     
     iret5 = pthread_create(&poisson_thread, NULL, poisson_benchmark, (void *)&poisson_param);
@@ -2861,6 +2977,8 @@ void create_forest(){
       cout<<"ERROR; return code from pthread_create() is "<<iret5<<endl;
          exit(-1);
     }
+    
+  // int micro = 15000000;
     usleep(micro);
     
     iret11 = pthread_create(&circuit_thread, NULL, circuit_benchmark, (void *)&circuit_param);
@@ -2868,6 +2986,9 @@ void create_forest(){
       cout<<"ERROR; return code from pthread_create() is "<<iret11<<endl;
          exit(-1);
     }
+    
+    
+     
     /*
     iret6 = pthread_create(&linpack_thread1, NULL, linpack_benchmark, (void *)&linpack_param);
 	if (iret6){
@@ -2881,6 +3002,7 @@ void create_forest(){
          exit(-1);
     }
     */
+    /*
     usleep(micro);
 	iret8 = pthread_create(&dijkstra_thread1, NULL, dijkstra_benchmark, (void *)&dijkstra_param);
 	if (iret8){
@@ -2888,12 +3010,13 @@ void create_forest(){
          exit(-1);
     }
     usleep(micro);
-    
+    */
     iret9 = pthread_create(&multitask_thread1, NULL, multitask_benchmark, (void *)&multitask_param);
 	if (iret9){
       cout<<"ERROR; return code from pthread_create() is "<<iret9<<endl;
          exit(-1);
     }
+   
     usleep(micro);
     iret10 = pthread_create(&poisson_thread1, NULL, poisson_benchmark, (void *)&poisson_param);
 	if (iret10){
@@ -2905,25 +3028,28 @@ void create_forest(){
 	if (iret12){
       cout<<"ERROR; return code from pthread_create() is "<<iret12<<endl;
          exit(-1);
-    }
+    } 
     
 	// Join threads
 	//pthread_join( linpack_thread, NULL);
     //pthread_join( gauss_seidel_thread, NULL);
-    pthread_join( dijkstra_thread, NULL);
-    pthread_join( multitask_thread, NULL);
-    pthread_join( poisson_thread, NULL);
-    pthread_join( circuit_thread, NULL);
+     // pthread_join( dijkstra_thread, NULL);
+      pthread_join( multitask_thread, NULL);
+      pthread_join( poisson_thread, NULL);
+      pthread_join( circuit_thread, NULL);
     //pthread_join( linpack_thread1, NULL);
     //pthread_join( gauss_seidel_thread1, NULL);
-    pthread_join( dijkstra_thread1, NULL);
+    
+   // pthread_join( dijkstra_thread1, NULL);
     pthread_join( multitask_thread1, NULL);
+    
     pthread_join( poisson_thread1, NULL);
     pthread_join( circuit_thread1, NULL);
     pthread_mutex_destroy(&lock);
 	}
 	//linpack_benchmark(2,100000, 1 , 8);
 	//gauss_seidel_benchmark(2,99,1,8);
+	//forest_created = false;
 	build_rtrees_classifier( data_filename, filename_to_save, filename_to_load );	
 	forest_created = true;
 	
@@ -2957,17 +3083,11 @@ void create_forest(){
     cout<<"Predict result = "<<pred_res<<endl;
     cout<<"The benchmarks have finished running."<<endl;
     ofstream myfile;
-    myfile.open ("predicted2.txt",ios::app);
+    myfile.open (prediction_log,ios::app);
 	myfile<<pred_res<<endl; 
 	
-	if (num_threads == 1){
-		// num_threads == 1 => use tool result
 	return new_set_num_threads(pred_res);
-	}
-	else {
-		// num_threads = 0 => dont use tool result
-	return new_set_num_threads(0);
-	}
+	
 }
 
 
